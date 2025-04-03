@@ -25,17 +25,17 @@ jobs:
       # - name: Run tests
       #   run: npm test
 
-      # Option A: Publish if version is already updated in package.json
-      - name: Publish package
-        run: |
-          npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
-          npm publish --access public
-        if: github.ref == 'refs/heads/main'
-      
-      # Option B: Automatically bump version (patch) then publish
-      # - name: Bump version & publish
+      # # Option A: Publish if version is already updated in package.json
+      # - name: Publish package
       #   run: |
       #     npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
-      #     npm version patch
       #     npm publish --access public
       #   if: github.ref == 'refs/heads/main'
+      
+      # Option B: Automatically bump version (patch) then publish
+      - name: Bump version & publish
+        run: |
+          npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
+          npm version patch
+          npm publish --access public
+        if: github.ref == 'refs/heads/main'
