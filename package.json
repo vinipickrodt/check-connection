@@ -20,5 +20,8 @@
     "utility"
   ],
   "author": "Vinícius Pickrodt",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "whois-json": "^2.0.4"
+  }
 }
