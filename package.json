@@ -1,0 +1,16 @@
+{
+  "name": "@vpckr/check-connection",
+  "version": "1.0.0",
+  "description": "Check if a given host:port is open",
+  "main": "cli.js",
+  "bin": {
+    "check-connection": "./cli.js"
+  },
+  "keywords": [
+    "port",
+    "connection",
+    "utility"
+  ],
+  "author": "Vinicius Pickrodt",
+  "license": "ISC"
+}
