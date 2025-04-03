@@ -124,51 +124,46 @@ async function run() {
     process.exit(1);
   }
 
-  // 2) If --asn is requested, fetch ASN info NOW (before connection check)
-  let asnInfo = null;
-  if (asnFlag) {
-    try {
-      asnInfo = await getAsnInfoFromCymru(resolvedIp);
-    } catch (err) {
-      // We won't fail the script if ASN lookup fails; just report the error
-      console.error(`Error fetching ASN info: ${err.message}`);
-    }
-  }
-
-  // 3) Attempt the port connection
-  let connectionError;
+  // 2) Check connection
+  let connectionSuccess = false;
+  let connectionError = null;
   try {
     await checkConnection(resolvedIp, port, 5000);
+    connectionSuccess = true;
   } catch (err) {
     connectionError = err;
   }
 
-  // 4) Print the host & IP
-  console.log(`[${host}] resolved to [${resolvedIp}]`);
+  // 3) Print the port check result first (as requested)
+  if (connectionSuccess) {
+    console.log(`[${host}] resolved to [${resolvedIp}] - Port ${port} is open`);
+  } else {
+    console.log(`[${host}] resolved to [${resolvedIp}] - Port ${port} is NOT open`);
+    // You can optionally show the reason:
+    // console.error(`Reason: ${connectionError.message}`);
+  }
 
-  // 5) Always display ASN info if requested
+  // 4) If --asn is requested, fetch and display ASN info (even if port is not open)
   if (asnFlag) {
-    if (asnInfo) {
-      console.log(`ASN:       ${asnInfo.asn}`);
-      console.log(`AS Name:   ${asnInfo.asName}`);
-      console.log(`BGP Prefix: ${asnInfo.prefix}`);
-      console.log(`CC:        ${asnInfo.cc}`);
-      console.log(`Registry:  ${asnInfo.registry}`);
-      console.log(`Allocated: ${asnInfo.allocated}`);
-    } else {
-      console.log('No ASN information could be retrieved for this IP.');
+    try {
+      const asnInfo = await getAsnInfoFromCymru(resolvedIp);
+      if (asnInfo) {
+        console.log(`ASN:       ${asnInfo.asn}`);
+        console.log(`AS Name:   ${asnInfo.asName}`);
+        console.log(`BGP Prefix: ${asnInfo.prefix}`);
+        console.log(`CC:        ${asnInfo.cc}`);
+        console.log(`Registry:  ${asnInfo.registry}`);
+        console.log(`Allocated: ${asnInfo.allocated}`);
+      } else {
+        console.log('No ASN information could be retrieved for this IP.');
+      }
+    } catch (err) {
+      console.error(`Error fetching ASN info: ${err.message}`);
     }
   }
 
-  // 6) Finally, log the success or failure of the port check
-  if (connectionError) {
-    console.error(`Port ${port} is NOT open.`);
-    console.error(`Reason: ${connectionError.message}`);
-    process.exit(1);
-  } else {
-    console.log(`Port ${port} is open.`);
-    process.exit(0);
-  }
+  // 5) Exit code: 0 if port is open, 1 if not
+  process.exit(connectionSuccess ? 0 : 1);
 }
 
 run();
