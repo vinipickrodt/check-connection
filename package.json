@@ -1,6 +1,6 @@
 {
   "name": "@vpckr/check-connection",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A lightweight CLI tool to quickly check if a specific host:port combination is open. It attempts a direct TCP connection with a configurable (5-second default) timeout, returning a clear success or failure message. Perfect for troubleshooting network connectivity or verifying service ports.",
   "main": "cli.js",
   "bin": {
