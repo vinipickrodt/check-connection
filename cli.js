@@ -7,7 +7,7 @@ const dns = require('dns').promises;
  * Attempts a TCP connection to the specified IP and port within a given timeout.
  * @param {string} ip - The IP address to connect to.
  * @param {number} port - The port to connect to.
- * @param {number} timeoutMs - Connection timeout in milliseconds (default 5000).
+ * @param {number} timeoutMs - Connection timeout in milliseconds (default: 5000).
  * @returns {Promise<void>} - Resolves if successful, rejects on error or timeout.
  */
 function checkConnection(ip, port, timeoutMs = 5000) {
@@ -35,7 +35,7 @@ function checkConnection(ip, port, timeoutMs = 5000) {
 }
 
 /**
- * Retrieves ASN information from Team Cymru’s whois service.
+ * Retrieves ASN information from Team Cymru’s whois service for a given IP.
  * @param {string} ip - IP address (IPv4 or IPv6) to look up.
  * @returns {Promise<Object|null>} - Parsed ASN info or `null` if not available.
  */
@@ -60,12 +60,10 @@ async function getAsnInfoFromCymru(ip) {
         .map((l) => l.trim())
         .filter((l) => l);
 
-      // Lines[0] is typically the header: 
-      // "AS      | IP               | BGP Prefix          | CC | Registry | Allocated  | AS Name"
-      // lines[1] should be the actual data
+      // The first line is typically a header. The second line is data, if any.
+      // Header example: "AS | IP | BGP Prefix | CC | Registry | Allocated | AS Name"
+      // Data example:   "15169 | 8.8.8.8 | 8.8.8.0/24 | US | ARIN | 1992-12-01 | GOOGLE - Google LLC, US"
       if (lines.length > 1) {
-        // Example line:
-        // "15169   | 8.8.8.8          | 8.8.8.0/24          | US | ARIN     | 1992-12-01 | GOOGLE - Google LLC, US"
         const row = lines[1];
         const columns = row.split('|').map((c) => c.trim());
 
@@ -84,7 +82,7 @@ async function getAsnInfoFromCymru(ip) {
         }
       }
 
-      // If we cannot parse the data, return null
+      // If we can’t parse any usable data, return null
       resolve(null);
     });
 
@@ -95,11 +93,11 @@ async function getAsnInfoFromCymru(ip) {
 }
 
 async function run() {
-  // Separate positional arguments (host, port) from flags
   const args = process.argv.slice(2);
   let asnFlag = false;
   const positionalArgs = [];
 
+  // Separate out the --asn flag from the <host> and <port>
   for (const arg of args) {
     if (arg === '--asn') {
       asnFlag = true;
@@ -116,7 +114,7 @@ async function run() {
     process.exit(1);
   }
 
-  // 1) Resolve hostname -> IP
+  // 1) Resolve the hostname to an IP
   let resolvedIp;
   try {
     const { address } = await dns.lookup(host);
@@ -126,38 +124,51 @@ async function run() {
     process.exit(1);
   }
 
-  // 2) Check connection
-  try {
-    await checkConnection(resolvedIp, port, 5000);
-    console.log(`[${host}] resolved to [${resolvedIp}] — Port ${port} is open`);
-  } catch (err) {
-    console.error(`[${host}] resolved to [${resolvedIp}] — Port ${port} is NOT open`);
-    console.error(`Reason: ${err.message}`);
-    process.exit(1);
-  }
-
-  // 3) If --asn is specified, retrieve ASN info from Team Cymru
+  // 2) If --asn is requested, fetch ASN info NOW (before connection check)
+  let asnInfo = null;
   if (asnFlag) {
     try {
-      const asnInfo = await getAsnInfoFromCymru(resolvedIp);
-      if (asnInfo) {
-        const { asn, asName, prefix, cc, registry, allocated } = asnInfo;
-        console.log(`ASN:       ${asn}`);
-        console.log(`AS Name:   ${asName}`);
-        console.log(`BGP Prefix: ${prefix}`);
-        console.log(`CC:        ${cc}`);
-        console.log(`Registry:  ${registry}`);
-        console.log(`Allocated: ${allocated}`);
-      } else {
-        console.log('No ASN information could be retrieved for this IP.');
-      }
+      asnInfo = await getAsnInfoFromCymru(resolvedIp);
     } catch (err) {
+      // We won't fail the script if ASN lookup fails; just report the error
       console.error(`Error fetching ASN info: ${err.message}`);
-      // Not exiting with error code here, since the main check was successful
     }
   }
 
-  process.exit(0);
+  // 3) Attempt the port connection
+  let connectionError;
+  try {
+    await checkConnection(resolvedIp, port, 5000);
+  } catch (err) {
+    connectionError = err;
+  }
+
+  // 4) Print the host & IP
+  console.log(`[${host}] resolved to [${resolvedIp}]`);
+
+  // 5) Always display ASN info if requested
+  if (asnFlag) {
+    if (asnInfo) {
+      console.log(`ASN:       ${asnInfo.asn}`);
+      console.log(`AS Name:   ${asnInfo.asName}`);
+      console.log(`BGP Prefix: ${asnInfo.prefix}`);
+      console.log(`CC:        ${asnInfo.cc}`);
+      console.log(`Registry:  ${asnInfo.registry}`);
+      console.log(`Allocated: ${asnInfo.allocated}`);
+    } else {
+      console.log('No ASN information could be retrieved for this IP.');
+    }
+  }
+
+  // 6) Finally, log the success or failure of the port check
+  if (connectionError) {
+    console.error(`Port ${port} is NOT open.`);
+    console.error(`Reason: ${connectionError.message}`);
+    process.exit(1);
+  } else {
+    console.log(`Port ${port} is open.`);
+    process.exit(0);
+  }
 }
 
 run();
