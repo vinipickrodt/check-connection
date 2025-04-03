@@ -1,0 +1,41 @@
+name: Publish to NPM
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Use Node.js 16.x (or 18.x)
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      # # Optional: Run tests or any build step you need
+      # - name: Run tests
+      #   run: npm test
+
+      # Option A: Publish if version is already updated in package.json
+      - name: Publish package
+        run: |
+          npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
+          npm publish --access public
+        if: github.ref == 'refs/heads/main'
+      
+      # Option B: Automatically bump version (patch) then publish
+      # - name: Bump version & publish
+      #   run: |
+      #     npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
+      #     npm version patch
+      #     npm publish --access public
+      #   if: github.ref == 'refs/heads/main'
