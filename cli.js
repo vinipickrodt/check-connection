@@ -1,18 +1,29 @@
 #!/usr/bin/env node
 
 const net = require('net');
+const dns = require('dns').promises;
 
-function checkConnection(host, port, timeoutMs = 5000) {
+/**
+ * Check if a connection can be established to the specified host:port.
+ * @param {string} host - The hostname or IP address.
+ * @param {number} port - The port number.
+ * @param {number} timeoutMs - The timeout in milliseconds (default 5000).
+ * @returns {Promise<string>} - Resolves with the resolved IP address if the connection is successful, or rejects on error.
+ */
+async function checkConnection(host, port, timeoutMs = 5000) {
+  // Resolve the hostname to get its IP address
+  const { address: resolvedIp } = await dns.lookup(host);
+
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
 
-    // Set the timeout
+    // Set the socket timeout
     socket.setTimeout(timeoutMs);
 
-    // Successful connection
+    // If the connection is successful
     socket.on('connect', () => {
       socket.end();
-      resolve();
+      resolve(resolvedIp);
     });
 
     // If a timeout occurs
@@ -27,8 +38,8 @@ function checkConnection(host, port, timeoutMs = 5000) {
       reject(err);
     });
 
-    // Attempt to connect
-    socket.connect(port, host);
+    // Attempt the connection to the resolved IP
+    socket.connect(port, resolvedIp);
   });
 }
 
@@ -41,11 +52,11 @@ async function run() {
   }
 
   try {
-    await checkConnection(host, port, 5000);
-    console.log(`${host}:${port} is open`);
+    const ip = await checkConnection(host, port, 5000);
+    console.log(`[${host}] resolved to [${ip}] — Port ${port} is open`);
     process.exit(0);
   } catch (err) {
-    console.error(`${host}:${port} is NOT open`);
+    console.error(`[${host}] — Port ${port} is NOT open`);
     console.error(`Reason: ${err.message}`);
     process.exit(1);
   }
