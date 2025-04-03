@@ -12,6 +12,22 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
+      - name: Validate commit message
+        run: |
+          echo "Commit message: ${{ github.event.head_commit.message }}"
+
+          # Simple regex for x.y.z (no pre-release, no build metadata).
+          # Adjust as needed if you want to allow pre-releases or other SemVer variants.
+          if [[ ! "${{ github.event.head_commit.message }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Commit message is NOT a valid semver (e.g., 1.0.42). Skipping publish..."
+            exit 1
+          fi
+
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "CI Bot"
+          git config --global user.email "vinipckr+CIBOT@gmail.com"
+
       - name: Use Node.js 16.x (or 18.x)
         uses: actions/setup-node@v3
         with:
@@ -21,21 +37,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # # Optional: Run tests or any build step you need
-      # - name: Run tests
-      #   run: npm test
-
-      # # Option A: Publish if version is already updated in package.json
-      # - name: Publish package
-      #   run: |
-      #     npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
-      #     npm publish --access public
-      #   if: github.ref == 'refs/heads/main'
-      
-      # Option B: Automatically bump version (patch) then publish
-      - name: Bump version & publish
+      # Publish if version is already updated in package.json
+      - name: Publish package
         run: |
           npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
-          npm version patch
           npm publish --access public
         if: github.ref == 'refs/heads/main'
