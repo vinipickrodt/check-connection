@@ -106,11 +106,13 @@ async function run() {
     }
   }
 
-  // We expect host and port in the positional args
-  const [host, port] = positionalArgs;
+  // We expect host and optionally port in the positional args
+  const [host, portArg] = positionalArgs;
+  const port = portArg || 80;
 
-  if (!host || !port) {
-    console.error('Usage: check-connection [--asn] <host> <port>');
+  if (!host) {
+    console.error('Usage: check-connection [--asn] <host> [port]');
+    console.error('  If port is not provided, defaults to 80');
     process.exit(1);
   }
 
